@@ -36,16 +36,16 @@ This package provides a drop-in replacement for [Serper.dev](https://serper.dev)
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## API Compatibility
+## API Compatibility (Verified 2026-02-04)
 
 | Serper.dev Endpoint | Supported | Notes |
 |---------------------|-----------|-------|
-| `/search` (POST) | ✅ | Web search |
-| `/news` (POST) | ✅ | News search |
-| `/images` (POST) | ✅ | Image search |
-| `/places` (POST) | ❌ | Not implemented |
-| `/scholar` (POST) | ❌ | Not implemented |
-| `/shopping` (POST) | ❌ | Not implemented |
+| `/search` (POST) | ✅ | Web search with knowledgeGraph, relatedSearches |
+| `/news` (POST) | ✅ | News with dates and sources |
+| `/images` (POST) | ✅ | Images with URLs and thumbnails |
+| `/places` (POST) | ⚠️ | Limited - uses OpenStreetMap data, not Google Maps |
+| `/scholar` (POST) | ✅ | Academic papers via arXiv, PubMed, Semantic Scholar |
+| `/shopping` (POST) | ✅ | Product search with automatic fallback & price extraction |
 
 ## Building
 
@@ -110,6 +110,8 @@ serper-startos/
 │   ├── src/             # TypeScript source
 │   ├── package.json
 │   └── tsconfig.json
+├── engines/             # Custom SearXNG engines
+│   └── openfoodfacts.py # Open Food Facts product search
 ├── scripts/             # Start9 integration (Deno)
 │   ├── embassy.ts       # Main exports
 │   ├── bundle.ts        # Build script

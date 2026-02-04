@@ -115,6 +115,32 @@ export interface SerperPlaceResult {
   position: number;
 }
 
+export interface SerperScholarResult {
+  title: string;
+  link: string;
+  snippet: string;
+  publication?: string;     // Journal, conference, or source name
+  authors?: string[];       // List of authors
+  citedBy?: number;         // Citation count
+  year?: string;            // Publication year
+  pdfUrl?: string;          // Direct PDF link if available
+  position: number;
+}
+
+export interface SerperShoppingResult {
+  title: string;
+  link: string;
+  source: string;           // Store name
+  price?: string;           // Formatted price (e.g., "$29.99")
+  currency?: string;        // Currency code (e.g., "USD")
+  thumbnail?: string;       // Product image URL
+  snippet?: string;         // Product description
+  rating?: number;          // Product rating
+  ratingCount?: number;     // Number of reviews
+  delivery?: string;        // Shipping info
+  position: number;
+}
+
 export interface SerperSearchResponse {
   searchParameters: {
     q: string;
@@ -167,8 +193,34 @@ export interface SerperPlacesResponse {
   credits?: number;
 }
 
+export interface SerperScholarResponse {
+  searchParameters: {
+    q: string;
+    gl: string;
+    hl: string;
+    num: number;
+    type: string;
+  };
+  scholar: SerperScholarResult[];
+  credits?: number;
+}
+
+export interface SerperShoppingResponse {
+  searchParameters: {
+    q: string;
+    gl: string;
+    hl: string;
+    num: number;
+    type: string;
+  };
+  shopping: SerperShoppingResult[];
+  credits?: number;
+}
+
 export type SerperResponse = 
   | SerperSearchResponse 
   | SerperNewsResponse 
   | SerperImagesResponse 
-  | SerperPlacesResponse;
+  | SerperPlacesResponse
+  | SerperScholarResponse
+  | SerperShoppingResponse;

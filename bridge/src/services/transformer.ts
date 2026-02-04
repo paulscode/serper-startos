@@ -11,10 +11,14 @@ import {
   SerperNewsResponse,
   SerperImagesResponse,
   SerperPlacesResponse,
+  SerperScholarResponse,
+  SerperShoppingResponse,
   SerperOrganicResult,
   SerperNewsResult,
   SerperImageResult,
   SerperPlaceResult,
+  SerperScholarResult,
+  SerperShoppingResult,
   SerperKnowledgeGraph,
   SerperAnswerBox,
   SerperPeopleAlsoAsk,
@@ -125,6 +129,41 @@ function transformToPlaceResult(
 }
 
 /**
+ * Transform a SearXNG result to a Serper scholar result
+ */
+function transformToScholarResult(
+  result: SearxngResult,
+  position: number
+): SerperScholarResult {
+  const scholarResult: SerperScholarResult = {
+    title: result.title || '',
+    link: result.url || '',
+    snippet: result.content || '',
+    position,
+  };
+
+  // Extract publication year from publishedDate if available
+  if (result.publishedDate) {
+    const yearMatch = result.publishedDate.match(/\b(19|20)\d{2}\b/);
+    if (yearMatch) {
+      scholarResult.year = yearMatch[0];
+    }
+  }
+
+  // Source engine can indicate publication source (arxiv, pubmed, semantic scholar, etc.)
+  if (result.engine) {
+    scholarResult.publication = result.engine;
+  }
+
+  // Check for PDF links in the URL
+  if (result.url && result.url.toLowerCase().includes('.pdf')) {
+    scholarResult.pdfUrl = result.url;
+  }
+
+  return scholarResult;
+}
+
+/**
  * Transform SearXNG infobox to Serper knowledge graph
  */
 function transformToKnowledgeGraph(
@@ -193,8 +232,8 @@ function extractDomain(url: string): string {
 export function transformSearchResponse(
   searxngResponse: SearxngSearchResponse,
   request: SerperSearchRequest,
-  searchType: 'search' | 'news' | 'images' | 'places' = 'search'
-): SerperSearchResponse | SerperNewsResponse | SerperImagesResponse | SerperPlacesResponse {
+  searchType: 'search' | 'news' | 'images' | 'places' | 'scholar' | 'shopping' = 'search'
+): SerperSearchResponse | SerperNewsResponse | SerperImagesResponse | SerperPlacesResponse | SerperScholarResponse | SerperShoppingResponse {
   
   const searchParameters = {
     q: request.q,
@@ -213,6 +252,10 @@ export function transformSearchResponse(
       return transformToImagesResponse(searxngResponse, searchParameters);
     case 'places':
       return transformToPlacesResponse(searxngResponse, searchParameters);
+    case 'scholar':
+      return transformToScholarResponse(searxngResponse, searchParameters);
+    case 'shopping':
+      return transformToShoppingResponse(searxngResponse, searchParameters);
     default:
       return transformToSearchResponse(searxngResponse, searchParameters);
   }
@@ -310,6 +353,95 @@ function transformToPlacesResponse(
     searchParameters,
     places: results.slice(0, searchParameters.num).map((result, index) =>
       transformToPlaceResult(result, index + 1)
+    ),
+    credits: 0,
+  };
+}
+
+function transformToScholarResponse(
+  searxngResponse: SearxngSearchResponse,
+  searchParameters: SerperScholarResponse['searchParameters']
+): SerperScholarResponse {
+  // Filter for science/academic results
+  const scholarResults = searxngResponse.results.filter(
+    (r) => r.category === 'science' || r.category === 'scientific_publications'
+  );
+
+  // If no science-specific results, use all results
+  const results = scholarResults.length > 0 ? scholarResults : searxngResponse.results;
+
+  return {
+    searchParameters,
+    scholar: results.slice(0, searchParameters.num).map((result, index) =>
+      transformToScholarResult(result, index + 1)
+    ),
+    credits: 0,
+  };
+}
+
+/**
+ * Transform a SearXNG result to a Serper shopping result
+ * Handles results from native shopping engines (eBay, Geizhals, etc.)
+ */
+function transformToShoppingResult(
+  result: SearxngResult,
+  position: number
+): SerperShoppingResult {
+  const shoppingResult: SerperShoppingResult = {
+    title: result.title || '',
+    link: result.url || '',
+    source: extractDomain(result.url) || result.engine || '',
+    snippet: result.content || '',
+    position,
+  };
+
+  // Use native price field from shopping engines if available
+  if (result.price) {
+    shoppingResult.price = result.price;
+  } else if (result.content) {
+    // Fallback: Try to extract price from content (common patterns: $XX.XX, €XX.XX, £XX.XX)
+    const priceMatch = result.content.match(/[\$€£]\s*\d+(?:[.,]\d{2})?/);
+    if (priceMatch) {
+      shoppingResult.price = priceMatch[0].trim();
+      // Determine currency from symbol
+      if (priceMatch[0].includes('$')) shoppingResult.currency = 'USD';
+      else if (priceMatch[0].includes('€')) shoppingResult.currency = 'EUR';
+      else if (priceMatch[0].includes('£')) shoppingResult.currency = 'GBP';
+    }
+  }
+
+  // Use shipping info if available from shopping engines
+  if (result.shipping) {
+    shoppingResult.delivery = result.shipping;
+  }
+
+  // Use thumbnail if available
+  if (result.thumbnail || result.img_src) {
+    shoppingResult.thumbnail = result.thumbnail || result.img_src;
+  }
+
+  return shoppingResult;
+}
+
+function transformToShoppingResponse(
+  searxngResponse: SearxngSearchResponse,
+  searchParameters: SerperShoppingResponse['searchParameters']
+): SerperShoppingResponse {
+  // Filter for shopping results from shopping engines
+  const shoppingEngines = ['ebay', 'ebay de', 'ebay uk', 'geizhals', 'openfoodfacts'];
+  
+  const shoppingResults = searxngResponse.results.filter(
+    (r) => r.category === 'shopping' || 
+           (r.engine && shoppingEngines.some(eng => r.engine?.toLowerCase().includes(eng)))
+  );
+
+  // If no shopping-specific results, use all results
+  const results = shoppingResults.length > 0 ? shoppingResults : searxngResponse.results;
+
+  return {
+    searchParameters,
+    shopping: results.slice(0, searchParameters.num).map((result, index) =>
+      transformToShoppingResult(result, index + 1)
     ),
     credits: 0,
   };

@@ -208,4 +208,89 @@ router.get('/places', async (req: Request, res: Response, next: NextFunction) =>
   }
 });
 
+/**
+ * POST /scholar - Scholar/Academic search
+ */
+router.post('/scholar', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const searchRequest = extractSearchRequest(req);
+    const validationError = validateSearchRequest(searchRequest);
+    
+    if (validationError) {
+      res.status(400).json({ error: 'Bad Request', message: validationError });
+      return;
+    }
+
+    logger.info(`Scholar search request: "${searchRequest.q}"`);
+    const result = await searchService.searchScholar(searchRequest);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /scholar - Alternative GET endpoint for scholar search
+ */
+router.get('/scholar', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const searchRequest = extractSearchRequest(req);
+    const validationError = validateSearchRequest(searchRequest);
+    
+    if (validationError) {
+      res.status(400).json({ error: 'Bad Request', message: validationError });
+      return;
+    }
+
+    logger.info(`Scholar search request (GET): "${searchRequest.q}"`);
+    const result = await searchService.searchScholar(searchRequest);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /shopping - Shopping/Product search
+ * Uses native SearXNG shopping category (requires enabled shopping engines like eBay, Geizhals)
+ */
+router.post('/shopping', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const searchRequest = extractSearchRequest(req);
+    const validationError = validateSearchRequest(searchRequest);
+    
+    if (validationError) {
+      res.status(400).json({ error: 'Bad Request', message: validationError });
+      return;
+    }
+
+    logger.info(`Shopping search request: "${searchRequest.q}"`);
+    const result = await searchService.searchShopping(searchRequest);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /shopping - Alternative GET endpoint for shopping search
+ */
+router.get('/shopping', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const searchRequest = extractSearchRequest(req);
+    const validationError = validateSearchRequest(searchRequest);
+    
+    if (validationError) {
+      res.status(400).json({ error: 'Bad Request', message: validationError });
+      return;
+    }
+
+    logger.info(`Shopping search request (GET): "${searchRequest.q}"`);
+    const result = await searchService.searchShopping(searchRequest);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

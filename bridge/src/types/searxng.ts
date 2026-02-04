@@ -44,6 +44,11 @@ export interface SearxngResult {
   resolution?: string;          // Image resolution
   img_format?: string;          // Image format
   
+  // For shopping results (eBay, Geizhals, etc.)
+  price?: string;               // Product price
+  shipping?: string;            // Shipping cost/info
+  source_country?: string;      // Country of origin
+  
   // For infobox results
   infobox?: string;
   id?: string;

@@ -70,6 +70,11 @@ COPY bridge/package.json ./
 COPY settings.yml /etc/searxng/settings.yml
 
 # ============================================================================
+# Add custom engines for shopping support
+# ============================================================================
+COPY engines/openfoodfacts.py /usr/local/searxng/searx/engines/openfoodfacts.py
+
+# ============================================================================
 # Setup entrypoint
 # ============================================================================
 COPY --chmod=755 docker_entrypoint.sh /usr/local/bin/docker_entrypoint.sh

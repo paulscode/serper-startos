@@ -38,3 +38,32 @@ outgoing:
   request_timeout: 3.5
   # Enable all engines for best coverage
   useragent_suffix: ""
+
+# Enable shopping engines (disabled by default in SearXNG)
+engines:
+  # eBay - US (global product marketplace)
+  - name: ebay
+    engine: ebay
+    shortcut: eb
+    base_url: 'https://www.ebay.com'
+    disabled: false
+    inactive: false
+    timeout: 5
+
+  # eBay DE - German eBay  
+  - name: ebay de
+    engine: ebay
+    shortcut: ebde
+    base_url: 'https://www.ebay.de'
+    disabled: false
+    inactive: false
+    timeout: 5
+
+  # eBay UK
+  - name: ebay uk
+    engine: ebay
+    shortcut: ebuk
+    base_url: 'https://www.ebay.co.uk'
+    disabled: false
+    inactive: false
+    timeout: 5

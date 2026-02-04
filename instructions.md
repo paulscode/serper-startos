@@ -39,10 +39,14 @@ curl -X POST "https://YOUR_LAN_ADDRESS/search" \
 | `/search` | POST | Web search (Serper-compatible) |
 | `/news` | POST | News search |
 | `/images` | POST | Image search |
+| `/shopping` | POST | Product search with price extraction |
+| `/scholar` | POST | Academic papers (arXiv, PubMed, Semantic Scholar) |
 | `/places` | POST | Places search (limited - see note below) |
 | `/health` | GET | Health check (no auth required) |
 
 > **Note on Places Search**: The `/places` endpoint provides basic location results, but has limited functionality compared to Google Maps-based services. Results depend on SearXNG's map engines (Photon, Nominatim) and may not include rich business data like ratings, hours, or phone numbers.
+
+> **Shopping Search**: The `/shopping` endpoint automatically falls back to general search results when shopping engines return no results (due to eBay anti-scraping). Prices are extracted from snippets when present (e.g., $45.84, €299.00). Returns results from Amazon, Best Buy, Apple, and other retailers.
 
 ## Request Format
 
