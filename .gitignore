@@ -1,0 +1,42 @@
+# Build artifacts
+*.s9pk
+docker-images/
+image.tar
+*.tar
+*.tar.gz
+
+#Release artifacts
+SHA256SUMS.txt
+*.asc
+
+# Generated scripts
+scripts/*.js
+scripts/**/*.js
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.DS_Store
+.idea/
+*.swp
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# Start9 CLI config (contains sensitive auth info)
+.embassy/
+
+# Deno cache (local development only)
+.deno/
+deno.lock
+
+#AI assistant instructions for the workspace
+.github/workflows/copilot-instructions.md

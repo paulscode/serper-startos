@@ -1,0 +1,40 @@
+# SearXNG Settings for Serper Bridge
+# Internal instance - not exposed to users directly
+
+use_default_settings: true
+
+server:
+  secret_key: "ultrasecretkey"
+  limiter: false
+  image_proxy: true
+
+ui:
+  static_use_hash: true
+  # Minimal UI since users interact via API only
+  results_on_new_tab: false
+
+valkey:
+  url: valkey:////var/run/valkey.sock
+
+general:
+  debug: false
+  instance_name: "Serper Clone"
+  contact_url: false
+  enable_metrics: false
+
+search:
+  # Enable all formats - bridge uses JSON
+  formats:
+    - html
+    - json
+    - csv
+    - rss
+  # Safe search off by default for comprehensive results
+  safe_search: 0
+  # Default autocomplete
+  autocomplete: ""
+
+outgoing:
+  request_timeout: 3.5
+  # Enable all engines for best coverage
+  useragent_suffix: ""

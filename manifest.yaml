@@ -1,0 +1,115 @@
+id: serper
+title: "Serper Clone"
+version: 1.0.0
+release-notes: |
+  - Initial release: Self-sovereign Serper-compatible search API
+  - Built on SearXNG for privacy-focused, decentralized search
+  - Compatible with LangChain, AutoGPT, and other AI tools
+  - No external API keys or subscriptions required
+  - Configurable API key for secure local access
+license: MIT
+wrapper-repo: "https://github.com/paulscode/serper-startos"
+upstream-repo: "https://github.com/paulscode/searxng-serper-bridge"
+support-site: "https://paulscode.com"
+marketing-site: "https://paulscode.com"
+build: ["make"]
+description:
+  short: Self-sovereign Serper-compatible search API - own your AI's search capability.
+  long: |
+    Serper Clone is a self-sovereign, privacy-respecting search API that provides full 
+    compatibility with the Serper.dev API format. Take back control of your AI workflows 
+    by hosting your own search infrastructure - no subscriptions, no external API keys, 
+    no data harvesting. Powered by SearXNG, aggregating results from multiple search 
+    engines without tracking you.
+    
+    Perfect for AI applications like LangChain, AutoGPT, and custom tools that expect 
+    a Serper-compatible API. Features include:
+    
+    - Full Serper API compatibility (/search, /news, /images)
+    - Works with LangChain's GoogleSerperAPIWrapper
+    - Configurable API key authentication
+    - Self-sovereign: no external dependencies or subscriptions
+    - Privacy-focused: aggregates results without tracking
+    - Note: Places search has limited functionality compared to Google Maps
+assets:
+  license: LICENSE
+  icon: icon.png
+  instructions: instructions.md
+main:
+  type: docker
+  image: main
+  entrypoint: docker_entrypoint.sh
+  args: []
+  mounts:
+    main: /root
+hardware-requirements:
+  arch:
+    - x86_64
+    - aarch64
+health-checks:
+  api:
+    name: Serper Clone API
+    success-message: Serper Clone API is ready
+    type: script
+config:
+  get:
+    type: script
+  set:
+    type: script
+properties:
+  type: script
+volumes:
+  main:
+    type: data
+interfaces:
+  main:
+    name: Serper Clone API
+    description: Self-sovereign Serper-compatible search API endpoint.
+    tor-config:
+      port-mapping:
+        80: "3000"
+    lan-config:
+      443:
+        ssl: true
+        internal: 3000
+    ui: false
+    protocols:
+      - tcp
+      - http
+dependencies: {}
+backup:
+  create:
+    type: docker
+    image: compat
+    system: true
+    entrypoint: compat
+    args:
+      - duplicity
+      - create
+      - /mnt/backup
+      - /root/data
+    mounts:
+      BACKUP: "/mnt/backup"
+      main: "/root/data"
+  restore:
+    type: docker
+    image: compat
+    system: true
+    entrypoint: compat
+    args:
+      - duplicity
+      - restore
+      - /mnt/backup
+      - /root/data
+    mounts:
+      BACKUP: "/mnt/backup"
+      main: "/root/data"
+migrations:
+  from:
+    "*":
+      type: script
+      args: ["from"]
+  to:
+    "*":
+      type: script
+      args: ["to"]
