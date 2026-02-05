@@ -1,4 +1,4 @@
-# Serper (Self-Hosted) - Start9 Package
+# Serper Clone (Self-Hosted) - Start9 Package
 
 A self-hosted, privacy-focused search API that provides Serper-compatible endpoints for AI applications.
 
