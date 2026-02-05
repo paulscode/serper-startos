@@ -88,10 +88,9 @@ After installation, configure via the Start9 UI:
 
 ## Usage
 
-See the **Properties** page in Start9 UI for:
-- Your API endpoint URLs (LAN and Tor)
-- Your API key
-- Example code snippets
+- See the **Interfaces** page for your API endpoint URLs (LAN and Tor)
+- See the **Config** page for your API key
+- See the **Instructions** page for example code snippets
 
 ### Quick Test
 
@@ -131,6 +130,7 @@ MIT License - See [LICENSE](LICENSE)
 
 ## Related Projects
 
+- [SearXNG Serper Bridge](https://github.com/paulscode/searxng-serper-bridge) - Serper-compatible interface on top of SearXNG
 - [SearXNG](https://github.com/searxng/searxng) - The metasearch engine powering this package
 - [Serper.dev](https://serper.dev) - The API this project is compatible with
 - [LangChain](https://github.com/langchain-ai/langchain) - AI framework with Serper integration
