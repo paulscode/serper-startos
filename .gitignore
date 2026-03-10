@@ -1,3 +1,6 @@
+# Dependencies
+node_modules/
+
 # Build artifacts
 *.s9pk
 docker-images/

@@ -1,5 +1,5 @@
 PKG_ID := serper
-PKG_VERSION := 1.0.0
+PKG_VERSION := 1.0.1
 TS_FILES := $(shell find ./ -name \*.ts)
 
 .DELETE_ON_ERROR:

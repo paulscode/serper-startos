@@ -1,12 +1,12 @@
 id: serper
 title: "Serper Clone"
-version: 1.0.0
+version: 1.0.1
 release-notes: |
-  - Initial release: Self-sovereign Serper-compatible search API
-  - Built on SearXNG for privacy-focused, decentralized search
-  - Compatible with LangChain, AutoGPT, and other AI tools
-  - No external API keys or subscriptions required
-  - Configurable API key for secure local access
+  - ML-powered prompt injection detection using DeBERTa model
+  - Configurable redact modes: redact (default), tag, or drop flagged content
+  - Response metadata (_meta) now included by default
+  - Improved defaults: rate limit 60/min, ML scanner on by default
+  - ML scan threshold accepts finer precision (e.g. 0.75)
 license: MIT
 wrapper-repo: "https://github.com/paulscode/serper-startos"
 upstream-repo: "https://github.com/paulscode/searxng-serper-bridge"
