@@ -5,6 +5,7 @@
 
 import { searxngClient } from './searxng-client';
 import { transformSearchResponse } from './transformer';
+import { scanTexts, isMlScannerReady } from './ml-scanner';
 import { config } from '../config';
 import { logger } from '../logger';
 import {
@@ -15,6 +16,7 @@ import {
   SerperPlacesResponse,
   SerperScholarResponse,
   SerperShoppingResponse,
+  SerperResponseMeta,
   SearxngSearchParams,
 } from '../types';
 
@@ -75,6 +77,159 @@ function mapLanguage(hl?: string, gl?: string): string {
 }
 
 /**
+ * Run ML-based prompt injection scanning on response text fields.
+ * Collects all scannable text from the response, runs them through the
+ * ML classifier in batch, and flags any detected injections in the
+ * existing _meta field (or creates one if includeResponseMeta is enabled).
+ */
+async function mlScanResponse(
+  response: SerperSearchResponse | SerperNewsResponse | SerperImagesResponse | SerperPlacesResponse | SerperScholarResponse | SerperShoppingResponse,
+  searchType: string
+): Promise<void> {
+  if (!isMlScannerReady()) return;
+
+  // Collect text fields and their locations for post-scan processing
+  const entries: Array<{
+    text: string;
+    ref: { obj: any; key: string };
+    arrayRef?: { array: any[]; item: any };
+    fieldRef?: { obj: any; key: string };
+  }> = [];
+
+  const addFromArray = (item: any, key: string, array: any[]) => {
+    const val = item?.[key];
+    if (typeof val === 'string' && val.length > 0) {
+      entries.push({ text: val, ref: { obj: item, key }, arrayRef: { array, item } });
+    }
+  };
+
+  const addFromField = (obj: any, key: string, parentObj: any, parentKey: string) => {
+    const val = obj?.[key];
+    if (typeof val === 'string' && val.length > 0) {
+      entries.push({ text: val, ref: { obj, key }, fieldRef: { obj: parentObj, key: parentKey } });
+    }
+  };
+
+  // Extract fields based on response type
+  if ('organic' in response) {
+    for (const r of response.organic) {
+      addFromArray(r, 'title', response.organic);
+      addFromArray(r, 'snippet', response.organic);
+    }
+    if (response.answerBox) {
+      addFromField(response.answerBox, 'answer', response, 'answerBox');
+      addFromField(response.answerBox, 'snippet', response, 'answerBox');
+    }
+    if (response.knowledgeGraph) {
+      addFromField(response.knowledgeGraph, 'description', response, 'knowledgeGraph');
+    }
+  }
+  if ('news' in response) {
+    for (const r of response.news) {
+      addFromArray(r, 'title', response.news);
+      addFromArray(r, 'snippet', response.news);
+    }
+  }
+  if ('images' in response) {
+    for (const r of response.images) {
+      addFromArray(r, 'title', response.images);
+    }
+  }
+  if ('places' in response) {
+    for (const r of response.places) {
+      addFromArray(r, 'title', response.places);
+      addFromArray(r, 'address', response.places);
+    }
+  }
+  if ('scholar' in response) {
+    for (const r of response.scholar) {
+      addFromArray(r, 'title', response.scholar);
+      addFromArray(r, 'snippet', response.scholar);
+    }
+  }
+  if ('shopping' in response) {
+    for (const r of response.shopping) {
+      addFromArray(r, 'title', response.shopping);
+      addFromArray(r, 'snippet', response.shopping);
+    }
+  }
+
+  if (entries.length === 0) return;
+
+  // Batch scan all texts
+  const texts = entries.map((e) => e.text);
+  const results = await scanTexts(texts);
+
+  // Process flagged items according to configured redact mode
+  const redactMode = config.mlRedactMode;
+  let mlFlaggedResults = 0;
+  const flaggedPositions = new Set<number>();
+  const itemsToRemove = new Set<any>();
+  const fieldsToRemove = new Set<string>();
+
+  for (let i = 0; i < results.length; i++) {
+    if (results[i].isInjection) {
+      const entry = entries[i];
+      flaggedPositions.add(i);
+      logger.warn(
+        `ML scanner flagged (score=${results[i].score.toFixed(3)}, action=${redactMode}): "${entry.text.substring(0, 80)}..."`
+      );
+
+      if (redactMode === 'drop') {
+        // Mark parent for removal
+        if (entry.arrayRef) {
+          itemsToRemove.add(entry.arrayRef.item);
+        } else if (entry.fieldRef) {
+          fieldsToRemove.add(entry.fieldRef.key);
+        }
+      } else if (redactMode === 'redact') {
+        // Replace text with redaction notice
+        entry.ref.obj[entry.ref.key] =
+          `[REDACTED: potential prompt injection detected (score=${results[i].score.toFixed(3)})]`;
+      } else {
+        // tag mode — prefix with warning, preserve original text
+        const currentText = entry.ref.obj[entry.ref.key] as string;
+        if (!currentText.startsWith('[ML-FLAGGED:')) {
+          entry.ref.obj[entry.ref.key] = `[ML-FLAGGED: score=${results[i].score.toFixed(3)}] ${currentText}`;
+        }
+      }
+    }
+  }
+
+  // For drop mode, remove flagged results from arrays and singular fields
+  if (redactMode === 'drop' && (itemsToRemove.size > 0 || fieldsToRemove.size > 0)) {
+    if (itemsToRemove.size > 0) {
+      const filter = (arr: any[]) => arr.filter((r) => !itemsToRemove.has(r));
+      if ('organic' in response) (response as any).organic = filter(response.organic);
+      if ('news' in response) (response as any).news = filter(response.news);
+      if ('images' in response) (response as any).images = filter(response.images);
+      if ('places' in response) (response as any).places = filter(response.places);
+      if ('scholar' in response) (response as any).scholar = filter(response.scholar);
+      if ('shopping' in response) (response as any).shopping = filter(response.shopping);
+    }
+    for (const key of fieldsToRemove) {
+      delete (response as any)[key];
+    }
+  }
+
+  mlFlaggedResults = flaggedPositions.size;
+
+  // Update _meta if metadata is enabled or if we found ML flags
+  if (config.includeResponseMeta || mlFlaggedResults > 0) {
+    const existing: SerperResponseMeta = (response as any)._meta || {
+      contentTrust: 'untrusted',
+      source: 'web-search',
+      sanitized: config.sanitizeResults,
+      flaggedResults: 0,
+    };
+    existing.mlScanEnabled = true;
+    existing.mlFlaggedResults = mlFlaggedResults;
+    existing.mlRedactMode = redactMode;
+    (response as any)._meta = existing;
+  }
+}
+
+/**
  * Perform a search through the bridge
  */
 export async function performSearch(
@@ -103,6 +258,9 @@ export async function performSearch(
 
   // Transform to Serper format
   const serperResponse = transformSearchResponse(searxngResponse, request, searchType);
+
+  // Run ML-based prompt injection scanning on response text fields
+  await mlScanResponse(serperResponse, searchType);
 
   return serperResponse;
 }

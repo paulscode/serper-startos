@@ -10,8 +10,9 @@ import morgan from 'morgan';
 
 import { config, validateConfig } from './config';
 import { logger } from './logger';
-import { authMiddleware, errorHandler, notFoundHandler } from './middleware';
+import { authMiddleware, errorHandler, notFoundHandler, rateLimiter } from './middleware';
 import { searchRoutes, healthRoutes } from './routes';
+import { initMlScanner } from './services/ml-scanner';
 
 // Validate configuration before starting
 try {
@@ -56,8 +57,8 @@ app.use(morgan('combined', {
 // Health and status routes (no auth required)
 app.use('/', healthRoutes);
 
-// Search routes (with optional auth)
-app.use('/', authMiddleware, searchRoutes);
+// Search routes (with optional auth and rate limiting)
+app.use('/', rateLimiter, authMiddleware, searchRoutes);
 
 // =============================================================================
 // Error Handling
@@ -73,41 +74,46 @@ app.use(errorHandler);
 // Server Startup
 // =============================================================================
 
-const server = app.listen(config.port, () => {
-  logger.info('='.repeat(60));
-  logger.info('SearXNG-Serper Bridge started');
-  logger.info('='.repeat(60));
-  logger.info(`Server listening on port ${config.port}`);
-  logger.info(`SearXNG backend: ${config.searxngBaseUrl}`);
-  logger.info(`API authentication: ${config.bridgeApiKey ? 'enabled' : 'disabled'}`);
-  logger.info(`Log level: ${config.logLevel}`);
-  logger.info('='.repeat(60));
-  logger.info('Available endpoints:');
-  logger.info('  POST /search  - General web search');
-  logger.info('  POST /news    - News search');
-  logger.info('  POST /images  - Image search');
-  logger.info('  POST /places  - Places search');
-  logger.info('  GET  /health  - Health check');
-  logger.info('  GET  /status  - Detailed status');
-  logger.info('='.repeat(60));
-});
+(async () => {
+  await initMlScanner();
 
-// Graceful shutdown
-const shutdown = () => {
-  logger.info('Shutting down gracefully...');
-  server.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
+  const server = app.listen(config.port, () => {
+    logger.info('='.repeat(60));
+    logger.info('SearXNG-Serper Bridge started');
+    logger.info('='.repeat(60));
+    logger.info(`Server listening on port ${config.port}`);
+    logger.info(`SearXNG backend: ${config.searxngBaseUrl}`);
+    logger.info(`API authentication: ${config.bridgeApiKey ? 'enabled' : 'disabled'}`);
+    logger.info(`Log level: ${config.logLevel}`);
+    logger.info(`ML prompt injection scanner: ${config.mlScanEnabled ? 'enabled' : 'disabled'}`);
+    logger.info('='.repeat(60));
+    logger.info('Available endpoints:');
+    logger.info('  POST /search  - General web search');
+    logger.info('  POST /news    - News search');
+    logger.info('  POST /images  - Image search');
+    logger.info('  POST /places  - Places search');
+    logger.info('  GET  /health  - Health check');
+    logger.info('  GET  /status  - Detailed status');
+    logger.info('='.repeat(60));
   });
 
-  // Force close after 10 seconds
-  setTimeout(() => {
-    logger.error('Forced shutdown after timeout');
-    process.exit(1);
-  }, 10000);
-};
+  // Graceful shutdown
+  const shutdown = () => {
+    logger.info('Shutting down gracefully...');
+    server.close(() => {
+      logger.info('Server closed');
+      process.exit(0);
+    });
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+    // Force close after 10 seconds
+    setTimeout(() => {
+      logger.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+})();
 
 export default app;

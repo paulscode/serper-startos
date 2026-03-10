@@ -1,6 +1,7 @@
 /**
  * Result Transformer
  * Converts SearXNG response format to Serper response format
+ * Applies prompt injection sanitization to all text fields.
  */
 
 import {
@@ -24,21 +25,75 @@ import {
   SerperPeopleAlsoAsk,
   SerperRelatedSearch,
   SerperSearchRequest,
+  SerperResponseMeta,
 } from '../types';
 import { config } from '../config';
 import { logger } from '../logger';
+import {
+  sanitizeTitle,
+  sanitizeSnippet,
+  sanitizeAnswer,
+  sanitizeAttribute,
+  sanitizeSuggestion,
+  wrapWithMarkers,
+  SanitizationResult,
+} from './sanitizer';
+
+/**
+ * Accumulates sanitization flags across all results in a response.
+ */
+class FlagTracker {
+  totalFlags = 0;
+  flaggedResults = 0;
+  private currentResultFlagged = false;
+
+  track(result: SanitizationResult): string {
+    if (result.flagCount > 0) {
+      this.totalFlags += result.flagCount;
+      if (!this.currentResultFlagged) {
+        this.flaggedResults++;
+        this.currentResultFlagged = true;
+      }
+    }
+    return result.text;
+  }
+
+  startResult(): void {
+    this.currentResultFlagged = false;
+  }
+
+  buildMeta(): SerperResponseMeta | undefined {
+    if (!config.includeResponseMeta) return undefined;
+    return {
+      contentTrust: 'untrusted',
+      source: 'web-search',
+      sanitized: config.sanitizeResults,
+      flaggedResults: this.flaggedResults,
+    };
+  }
+}
+
+/**
+ * Apply sanitization to a text field if enabled, otherwise just return it.
+ */
+function san(text: string, sanitize: (t: string) => SanitizationResult, tracker: FlagTracker): string {
+  if (!config.sanitizeResults) return text;
+  return tracker.track(sanitize(text));
+}
 
 /**
  * Transform a SearXNG result to a Serper organic result
  */
 function transformToOrganicResult(
   result: SearxngResult,
-  position: number
+  position: number,
+  tracker: FlagTracker
 ): SerperOrganicResult {
+  tracker.startResult();
   const organicResult: SerperOrganicResult = {
-    title: result.title || '',
+    title: san(result.title || '', sanitizeTitle, tracker),
     link: result.url || '',
-    snippet: result.content || '',
+    snippet: wrapWithMarkers(san(result.content || '', sanitizeSnippet, tracker)),
     position,
   };
 
@@ -51,7 +106,8 @@ function transformToOrganicResult(
   if (result.attributes && result.attributes.length > 0) {
     organicResult.attributes = {};
     for (const attr of result.attributes) {
-      organicResult.attributes[attr.label] = attr.value;
+      organicResult.attributes[san(attr.label, sanitizeAttribute, tracker)] =
+        san(attr.value, sanitizeAttribute, tracker);
     }
   }
 
@@ -63,12 +119,14 @@ function transformToOrganicResult(
  */
 function transformToNewsResult(
   result: SearxngResult,
-  position: number
+  position: number,
+  tracker: FlagTracker
 ): SerperNewsResult {
+  tracker.startResult();
   return {
-    title: result.title || '',
+    title: san(result.title || '', sanitizeTitle, tracker),
     link: result.url || '',
-    snippet: result.content || '',
+    snippet: wrapWithMarkers(san(result.content || '', sanitizeSnippet, tracker)),
     date: result.publishedDate || '',
     source: extractDomain(result.url) || result.engine || '',
     imageUrl: result.thumbnail || result.img_src,
@@ -81,8 +139,10 @@ function transformToNewsResult(
  */
 function transformToImageResult(
   result: SearxngResult,
-  position: number
+  position: number,
+  tracker: FlagTracker
 ): SerperImageResult {
+  tracker.startResult();
   // Parse resolution if available
   let width = 0;
   let height = 0;
@@ -95,14 +155,14 @@ function transformToImageResult(
   }
 
   return {
-    title: result.title || '',
+    title: san(result.title || '', sanitizeTitle, tracker),
     imageUrl: result.img_src || result.url || '',
     imageWidth: width,
     imageHeight: height,
     thumbnailUrl: result.thumbnail_src || result.thumbnail || result.img_src || '',
     thumbnailWidth: Math.min(width, 200),
     thumbnailHeight: Math.min(height, 200),
-    source: result.title || '',
+    source: san(result.title || '', sanitizeTitle, tracker),
     domain: extractDomain(result.url) || '',
     link: result.url || '',
     googleUrl: result.url || '',
@@ -115,13 +175,15 @@ function transformToImageResult(
  */
 function transformToPlaceResult(
   result: SearxngResult,
-  position: number
+  position: number,
+  tracker: FlagTracker
 ): SerperPlaceResult {
+  tracker.startResult();
   // SearXNG doesn't have a direct equivalent to Google Places
   // We do our best to map available fields
   return {
-    title: result.title || '',
-    address: result.content || '',
+    title: san(result.title || '', sanitizeTitle, tracker),
+    address: san(result.content || '', sanitizeSnippet, tracker),
     position,
     // These would need to be extracted from content or other fields if available
     category: result.engine || undefined,
@@ -133,12 +195,14 @@ function transformToPlaceResult(
  */
 function transformToScholarResult(
   result: SearxngResult,
-  position: number
+  position: number,
+  tracker: FlagTracker
 ): SerperScholarResult {
+  tracker.startResult();
   const scholarResult: SerperScholarResult = {
-    title: result.title || '',
+    title: san(result.title || '', sanitizeTitle, tracker),
     link: result.url || '',
-    snippet: result.content || '',
+    snippet: wrapWithMarkers(san(result.content || '', sanitizeSnippet, tracker)),
     position,
   };
 
@@ -167,11 +231,13 @@ function transformToScholarResult(
  * Transform SearXNG infobox to Serper knowledge graph
  */
 function transformToKnowledgeGraph(
-  infobox: SearxngInfobox
+  infobox: SearxngInfobox,
+  tracker: FlagTracker
 ): SerperKnowledgeGraph {
+  tracker.startResult();
   const kg: SerperKnowledgeGraph = {
-    title: infobox.infobox,
-    description: infobox.content,
+    title: san(infobox.infobox, sanitizeTitle, tracker),
+    description: infobox.content ? wrapWithMarkers(san(infobox.content, sanitizeSnippet, tracker)) : undefined,
     imageUrl: infobox.img_src,
   };
 
@@ -184,7 +250,8 @@ function transformToKnowledgeGraph(
   if (infobox.attributes && infobox.attributes.length > 0) {
     kg.attributes = {};
     for (const attr of infobox.attributes) {
-      kg.attributes[attr.label] = attr.value;
+      kg.attributes[san(attr.label, sanitizeAttribute, tracker)] =
+        san(attr.value, sanitizeAttribute, tracker);
     }
   }
 
@@ -194,23 +261,27 @@ function transformToKnowledgeGraph(
 /**
  * Transform SearXNG suggestions to Serper related searches
  */
-function transformToRelatedSearches(suggestions: string[]): SerperRelatedSearch[] {
-  return suggestions.map((suggestion) => ({
-    query: suggestion,
-  }));
+function transformToRelatedSearches(suggestions: string[], tracker: FlagTracker): SerperRelatedSearch[] {
+  return suggestions.map((suggestion) => {
+    tracker.startResult();
+    return {
+      query: san(suggestion, sanitizeSuggestion, tracker),
+    };
+  });
 }
 
 /**
  * Transform SearXNG answers to Serper answer box
  */
-function transformToAnswerBox(answers: string[]): SerperAnswerBox | undefined {
+function transformToAnswerBox(answers: string[], tracker: FlagTracker): SerperAnswerBox | undefined {
   if (answers.length === 0) {
     return undefined;
   }
 
+  tracker.startResult();
   return {
-    answer: answers[0],
-    snippet: answers.join(' '),
+    answer: wrapWithMarkers(san(answers[0], sanitizeAnswer, tracker)),
+    snippet: wrapWithMarkers(san(answers.join(' '), sanitizeSnippet, tracker)),
   };
 }
 
@@ -265,6 +336,8 @@ function transformToSearchResponse(
   searxngResponse: SearxngSearchResponse,
   searchParameters: SerperSearchResponse['searchParameters']
 ): SerperSearchResponse {
+  const tracker = new FlagTracker();
+
   // Filter for general/web results
   const webResults = searxngResponse.results.filter(
     (r) => r.category === 'general' || !r.category
@@ -273,27 +346,30 @@ function transformToSearchResponse(
   const response: SerperSearchResponse = {
     searchParameters,
     organic: webResults.slice(0, searchParameters.num).map((result, index) =>
-      transformToOrganicResult(result, index + 1)
+      transformToOrganicResult(result, index + 1, tracker)
     ),
   };
 
   // Add knowledge graph from infoboxes
   if (searxngResponse.infoboxes && searxngResponse.infoboxes.length > 0) {
-    response.knowledgeGraph = transformToKnowledgeGraph(searxngResponse.infoboxes[0]);
+    response.knowledgeGraph = transformToKnowledgeGraph(searxngResponse.infoboxes[0], tracker);
   }
 
   // Add answer box from answers
   if (searxngResponse.answers && searxngResponse.answers.length > 0) {
-    response.answerBox = transformToAnswerBox(searxngResponse.answers);
+    response.answerBox = transformToAnswerBox(searxngResponse.answers, tracker);
   }
 
   // Add related searches from suggestions
   if (searxngResponse.suggestions && searxngResponse.suggestions.length > 0) {
-    response.relatedSearches = transformToRelatedSearches(searxngResponse.suggestions);
+    response.relatedSearches = transformToRelatedSearches(searxngResponse.suggestions, tracker);
   }
 
   // Credits are always 0 since we're using self-hosted SearXNG
   response.credits = 0;
+
+  // Add response metadata if enabled
+  response._meta = tracker.buildMeta();
 
   return response;
 }
@@ -302,6 +378,8 @@ function transformToNewsResponse(
   searxngResponse: SearxngSearchResponse,
   searchParameters: SerperNewsResponse['searchParameters']
 ): SerperNewsResponse {
+  const tracker = new FlagTracker();
+
   // Filter for news results
   const newsResults = searxngResponse.results.filter(
     (r) => r.category === 'news' || r.publishedDate
@@ -313,9 +391,10 @@ function transformToNewsResponse(
   return {
     searchParameters,
     news: results.slice(0, searchParameters.num).map((result, index) =>
-      transformToNewsResult(result, index + 1)
+      transformToNewsResult(result, index + 1, tracker)
     ),
     credits: 0,
+    _meta: tracker.buildMeta(),
   };
 }
 
@@ -323,6 +402,8 @@ function transformToImagesResponse(
   searxngResponse: SearxngSearchResponse,
   searchParameters: SerperImagesResponse['searchParameters']
 ): SerperImagesResponse {
+  const tracker = new FlagTracker();
+
   // Filter for image results
   const imageResults = searxngResponse.results.filter(
     (r) => r.category === 'images' || r.img_src
@@ -331,9 +412,10 @@ function transformToImagesResponse(
   return {
     searchParameters,
     images: imageResults.slice(0, searchParameters.num).map((result, index) =>
-      transformToImageResult(result, index + 1)
+      transformToImageResult(result, index + 1, tracker)
     ),
     credits: 0,
+    _meta: tracker.buildMeta(),
   };
 }
 
@@ -341,6 +423,8 @@ function transformToPlacesResponse(
   searxngResponse: SearxngSearchResponse,
   searchParameters: SerperPlacesResponse['searchParameters']
 ): SerperPlacesResponse {
+  const tracker = new FlagTracker();
+
   // Filter for map/places results
   const placeResults = searxngResponse.results.filter(
     (r) => r.category === 'map'
@@ -352,9 +436,10 @@ function transformToPlacesResponse(
   return {
     searchParameters,
     places: results.slice(0, searchParameters.num).map((result, index) =>
-      transformToPlaceResult(result, index + 1)
+      transformToPlaceResult(result, index + 1, tracker)
     ),
     credits: 0,
+    _meta: tracker.buildMeta(),
   };
 }
 
@@ -362,6 +447,8 @@ function transformToScholarResponse(
   searxngResponse: SearxngSearchResponse,
   searchParameters: SerperScholarResponse['searchParameters']
 ): SerperScholarResponse {
+  const tracker = new FlagTracker();
+
   // Filter for science/academic results
   const scholarResults = searxngResponse.results.filter(
     (r) => r.category === 'science' || r.category === 'scientific_publications'
@@ -373,9 +460,10 @@ function transformToScholarResponse(
   return {
     searchParameters,
     scholar: results.slice(0, searchParameters.num).map((result, index) =>
-      transformToScholarResult(result, index + 1)
+      transformToScholarResult(result, index + 1, tracker)
     ),
     credits: 0,
+    _meta: tracker.buildMeta(),
   };
 }
 
@@ -385,13 +473,15 @@ function transformToScholarResponse(
  */
 function transformToShoppingResult(
   result: SearxngResult,
-  position: number
+  position: number,
+  tracker: FlagTracker
 ): SerperShoppingResult {
+  tracker.startResult();
   const shoppingResult: SerperShoppingResult = {
-    title: result.title || '',
+    title: san(result.title || '', sanitizeTitle, tracker),
     link: result.url || '',
     source: extractDomain(result.url) || result.engine || '',
-    snippet: result.content || '',
+    snippet: wrapWithMarkers(san(result.content || '', sanitizeSnippet, tracker)),
     position,
   };
 
@@ -427,6 +517,8 @@ function transformToShoppingResponse(
   searxngResponse: SearxngSearchResponse,
   searchParameters: SerperShoppingResponse['searchParameters']
 ): SerperShoppingResponse {
+  const tracker = new FlagTracker();
+
   // Filter for shopping results from shopping engines
   const shoppingEngines = ['ebay', 'ebay de', 'ebay uk', 'geizhals', 'openfoodfacts'];
   
@@ -441,8 +533,9 @@ function transformToShoppingResponse(
   return {
     searchParameters,
     shopping: results.slice(0, searchParameters.num).map((result, index) =>
-      transformToShoppingResult(result, index + 1)
+      transformToShoppingResult(result, index + 1, tracker)
     ),
     credits: 0,
+    _meta: tracker.buildMeta(),
   };
 }

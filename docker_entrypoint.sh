@@ -27,13 +27,58 @@ if [ -f /root/start9/config.yaml ]; then
   export INSTANCE_NAME=$(yq e '.instance-name // "Serper Clone"' /root/start9/config.yaml)
   export LOG_LEVEL=$(yq e '.log-level // "info"' /root/start9/config.yaml)
   export DEFAULT_NUM_RESULTS=$(yq e '.default-results // 10' /root/start9/config.yaml)
+  # Prompt injection defense settings
+  SANITIZE_RESULTS_RAW=$(yq e '.prompt-injection-defense.sanitize-results // true' /root/start9/config.yaml)
+  WRAP_MARKERS_RAW=$(yq e '.prompt-injection-defense.wrap-markers // false' /root/start9/config.yaml)
+  INCLUDE_META_RAW=$(yq e '.prompt-injection-defense.include-meta // false' /root/start9/config.yaml)
+  export RATE_LIMIT_PER_MINUTE=$(yq e '.prompt-injection-defense.rate-limit // 30' /root/start9/config.yaml)
+  export MAX_QUERY_LENGTH=$(yq e '.prompt-injection-defense.max-query-length // 2000' /root/start9/config.yaml)
+  ML_SCAN_ENABLED_RAW=$(yq e '.prompt-injection-defense.ml-scan-enabled // false' /root/start9/config.yaml)
+  ML_SCAN_THRESHOLD_RAW=$(yq e '.prompt-injection-defense.ml-scan-threshold // "0.5"' /root/start9/config.yaml)
+  export ML_REDACT_MODE=$(yq e '.prompt-injection-defense.ml-redact-mode // "redact"' /root/start9/config.yaml)
 else
   echo "[init] No Start9 config found, using defaults"
   export API_KEY=""
   export INSTANCE_NAME="Serper Clone"
   export LOG_LEVEL="info"
   export DEFAULT_NUM_RESULTS="10"
+  SANITIZE_RESULTS_RAW="true"
+  WRAP_MARKERS_RAW="false"
+  INCLUDE_META_RAW="true"
+  export RATE_LIMIT_PER_MINUTE="60"
+  export MAX_QUERY_LENGTH="2000"
+  ML_SCAN_ENABLED_RAW="true"
+  ML_SCAN_THRESHOLD_RAW="0.5"
+  export ML_REDACT_MODE="redact"
 fi
+
+# Convert boolean values to the format the bridge expects
+if [ "$SANITIZE_RESULTS_RAW" = "false" ]; then
+  export SANITIZE_RESULTS="false"
+else
+  export SANITIZE_RESULTS="true"
+fi
+
+if [ "$WRAP_MARKERS_RAW" = "true" ]; then
+  export SANITIZE_WRAP_MARKERS="true"
+else
+  export SANITIZE_WRAP_MARKERS="false"
+fi
+
+if [ "$INCLUDE_META_RAW" = "true" ]; then
+  export INCLUDE_RESPONSE_META="true"
+else
+  export INCLUDE_RESPONSE_META="false"
+fi
+
+if [ "$ML_SCAN_ENABLED_RAW" = "true" ]; then
+  export ML_SCAN_ENABLED="true"
+else
+  export ML_SCAN_ENABLED="false"
+fi
+
+export ML_SCAN_THRESHOLD="$ML_SCAN_THRESHOLD_RAW"
+export ML_MODEL_CACHE_DIR="/app/models"
 
 # Generate random secret key for SearXNG
 export ULTRA_SECRET_KEY=$(head -c 24 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9')
@@ -104,6 +149,14 @@ echo "       API Key: ${BRIDGE_API_KEY:0:8}..."
 echo "       Instance: $INSTANCE_NAME"
 echo "       Log Level: $LOG_LEVEL"
 echo "       Default Results: $DEFAULT_NUM_RESULTS"
+echo "       Sanitize Results: $SANITIZE_RESULTS"
+echo "       Wrap Markers: $SANITIZE_WRAP_MARKERS"
+echo "       Include Meta: $INCLUDE_RESPONSE_META"
+echo "       Rate Limit: $RATE_LIMIT_PER_MINUTE req/min"
+echo "       Max Query Length: $MAX_QUERY_LENGTH"
+echo "       ML Scanner: $ML_SCAN_ENABLED"
+echo "       ML Threshold: $ML_SCAN_THRESHOLD"
+echo "       ML Redact Mode: $ML_REDACT_MODE"
 
 # ============================================================================
 # Start Services

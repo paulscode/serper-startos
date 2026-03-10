@@ -6,9 +6,16 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { searchService } from '../services';
 import { logger } from '../logger';
+import { config } from '../config';
 import { SerperSearchRequest } from '../types';
 
 const router = Router();
+
+/**
+ * Regex for valid country/language codes.
+ * Accepts 2-letter codes (en, us) and composite codes (en-GB, pt-BR).
+ */
+const LOCALE_CODE_REGEX = /^[a-zA-Z]{2}(-[a-zA-Z]{2,4})?$/;
 
 /**
  * Helper to extract search request from body or query params
@@ -30,12 +37,42 @@ function extractSearchRequest(req: Request): SerperSearchRequest {
 }
 
 /**
- * Validate search request
+ * Validate search request with hardened input checks
  */
 function validateSearchRequest(req: SerperSearchRequest): string | null {
   if (!req.q || typeof req.q !== 'string' || req.q.trim() === '') {
     return 'Query parameter "q" is required';
   }
+
+  // Enforce query length limit
+  if (req.q.length > config.maxQueryLength) {
+    return `Query exceeds maximum length of ${config.maxQueryLength} characters`;
+  }
+
+  // Validate num parameter bounds
+  if (req.num !== undefined) {
+    if (!Number.isFinite(req.num) || req.num < 1 || req.num > 100) {
+      return 'Parameter "num" must be between 1 and 100';
+    }
+  }
+
+  // Validate page parameter bounds
+  if (req.page !== undefined) {
+    if (!Number.isFinite(req.page) || req.page < 1 || req.page > 100) {
+      return 'Parameter "page" must be between 1 and 100';
+    }
+  }
+
+  // Validate gl (country code) format
+  if (req.gl !== undefined && !LOCALE_CODE_REGEX.test(req.gl)) {
+    return 'Parameter "gl" must be a valid locale code (e.g., "us" or "en-US")';
+  }
+
+  // Validate hl (language code) format
+  if (req.hl !== undefined && !LOCALE_CODE_REGEX.test(req.hl)) {
+    return 'Parameter "hl" must be a valid locale code (e.g., "en" or "en-GB")';
+  }
+
   return null;
 }
 

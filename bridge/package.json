@@ -24,6 +24,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
     "express": "^4.18.2",
     "axios": "^1.6.0",
     "cors": "^2.8.5",

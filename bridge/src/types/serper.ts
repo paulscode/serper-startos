@@ -141,6 +141,20 @@ export interface SerperShoppingResult {
   position: number;
 }
 
+// =============================================================================
+// Response Metadata (prompt injection defense)
+// =============================================================================
+
+export interface SerperResponseMeta {
+  contentTrust: 'untrusted';
+  source: 'web-search';
+  sanitized: boolean;
+  flaggedResults: number;
+  mlScanEnabled?: boolean;
+  mlFlaggedResults?: number;
+  mlRedactMode?: string;
+}
+
 export interface SerperSearchResponse {
   searchParameters: {
     q: string;
@@ -155,6 +169,7 @@ export interface SerperSearchResponse {
   peopleAlsoAsk?: SerperPeopleAlsoAsk[];
   relatedSearches?: SerperRelatedSearch[];
   credits?: number;
+  _meta?: SerperResponseMeta;
 }
 
 export interface SerperNewsResponse {
@@ -167,6 +182,7 @@ export interface SerperNewsResponse {
   };
   news: SerperNewsResult[];
   credits?: number;
+  _meta?: SerperResponseMeta;
 }
 
 export interface SerperImagesResponse {
@@ -179,6 +195,7 @@ export interface SerperImagesResponse {
   };
   images: SerperImageResult[];
   credits?: number;
+  _meta?: SerperResponseMeta;
 }
 
 export interface SerperPlacesResponse {
@@ -191,6 +208,7 @@ export interface SerperPlacesResponse {
   };
   places: SerperPlaceResult[];
   credits?: number;
+  _meta?: SerperResponseMeta;
 }
 
 export interface SerperScholarResponse {
@@ -203,6 +221,7 @@ export interface SerperScholarResponse {
   };
   scholar: SerperScholarResult[];
   credits?: number;
+  _meta?: SerperResponseMeta;
 }
 
 export interface SerperShoppingResponse {
@@ -215,6 +234,7 @@ export interface SerperShoppingResponse {
   };
   shopping: SerperShoppingResult[];
   credits?: number;
+  _meta?: SerperResponseMeta;
 }
 
 export type SerperResponse = 
