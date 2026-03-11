@@ -110,10 +110,11 @@ async function mlScanResponse(
     }
   };
 
-  // Extract fields based on response type
+  // Extract snippet/content fields only — these are the primary injection
+  // vectors. Titles are short, low-risk, and scanning them doubles inference
+  // time for minimal security benefit.
   if ('organic' in response) {
     for (const r of response.organic) {
-      addFromArray(r, 'title', response.organic);
       addFromArray(r, 'snippet', response.organic);
     }
     if (response.answerBox) {
@@ -126,30 +127,22 @@ async function mlScanResponse(
   }
   if ('news' in response) {
     for (const r of response.news) {
-      addFromArray(r, 'title', response.news);
       addFromArray(r, 'snippet', response.news);
     }
   }
   if ('images' in response) {
-    for (const r of response.images) {
-      addFromArray(r, 'title', response.images);
-    }
+    // images only have titles — skip ML scan (regex sanitizer still applies)
   }
   if ('places' in response) {
-    for (const r of response.places) {
-      addFromArray(r, 'title', response.places);
-      addFromArray(r, 'address', response.places);
-    }
+    // places have short structured text — skip ML scan
   }
   if ('scholar' in response) {
     for (const r of response.scholar) {
-      addFromArray(r, 'title', response.scholar);
       addFromArray(r, 'snippet', response.scholar);
     }
   }
   if ('shopping' in response) {
     for (const r of response.shopping) {
-      addFromArray(r, 'title', response.shopping);
       addFromArray(r, 'snippet', response.shopping);
     }
   }

@@ -24,6 +24,9 @@ logs/
 .env
 .env.local
 
+# ML model binaries (too large for Git — fetch with scripts/fetch-model.sh)
+models/**/*.onnx
+
 # IDE
 .DS_Store
 .idea/

@@ -34,7 +34,11 @@ COPY bridge/src/ ./src/
 RUN npm run build
 
 # Also prepare production node_modules
-RUN rm -rf node_modules && npm ci --only=production
+RUN rm -rf node_modules && npm ci --only=production && \
+    rm -rf node_modules/onnxruntime-node && \
+    mkdir -p node_modules/onnxruntime-node && \
+    echo '{"name":"onnxruntime-node","main":"index.js"}' > node_modules/onnxruntime-node/package.json && \
+    echo 'module.exports = require("onnxruntime-web");' > node_modules/onnxruntime-node/index.js
 
 # ============================================================================
 # Stage 3: Final unified image
@@ -73,6 +77,11 @@ COPY settings.yml /etc/searxng/settings.yml
 # Add custom engines for shopping support
 # ============================================================================
 COPY engines/openfoodfacts.py /usr/local/searxng/searx/engines/openfoodfacts.py
+
+# ============================================================================
+# Bake ML prompt injection model into image
+# ============================================================================
+COPY models/ /app/models/
 
 # ============================================================================
 # Setup entrypoint

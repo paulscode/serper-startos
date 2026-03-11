@@ -30,19 +30,27 @@ clean:
 	rm -f $(PKG_ID).s9pk
 	rm -f scripts/*.js
 
+clean-model:
+	rm -f models/ProtectAI/deberta-v3-base-prompt-injection-v2/onnx/model_quantized.onnx
+
 # Build the embassy.js from TypeScript
 scripts/embassy.js: $(TS_FILES)
 	deno run --allow-read --allow-write --allow-env --allow-net scripts/bundle.ts
 
+# Fetch ML model if not present
+models/ProtectAI/deberta-v3-base-prompt-injection-v2/onnx/model_quantized.onnx:
+	@echo "Fetching ML model..."
+	@bash scripts/fetch-model.sh
+
 # Build Docker images for each architecture
-docker-images/x86_64.tar: Dockerfile docker_entrypoint.sh settings.yml bridge/*
+docker-images/x86_64.tar: Dockerfile docker_entrypoint.sh settings.yml bridge/**/* models/ProtectAI/deberta-v3-base-prompt-injection-v2/onnx/model_quantized.onnx
 ifeq ($(ARCH),aarch64)
 else
 	mkdir -p docker-images
 	docker buildx build --tag start9/$(PKG_ID)/main:$(PKG_VERSION) --platform=linux/amd64 -o type=docker,dest=docker-images/x86_64.tar .
 endif
 
-docker-images/aarch64.tar: Dockerfile docker_entrypoint.sh settings.yml bridge/*
+docker-images/aarch64.tar: Dockerfile docker_entrypoint.sh settings.yml bridge/**/* models/ProtectAI/deberta-v3-base-prompt-injection-v2/onnx/model_quantized.onnx
 ifeq ($(ARCH),x86_64)
 else
 	mkdir -p docker-images

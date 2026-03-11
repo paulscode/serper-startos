@@ -56,10 +56,31 @@ This package provides a drop-in replacement for [Serper.dev](https://serper.dev)
 - Docker with buildx support
 - yq
 
+### ML Model Setup
+
+The package includes an ML-based prompt injection scanner powered by a quantized DeBERTa model. The ONNX model binary (~233MB) is **not** stored in Git — you must fetch it before building:
+
+```bash
+# Install Python dependencies (one-time)
+pip install onnx onnxruntime
+
+# Download and quantize the model
+./scripts/fetch-model.sh
+```
+
+This downloads the fp32 model from HuggingFace, quantizes it to uint8, and places the files in `models/`. The build will fail if the model hasn't been fetched.
+
+To re-download (e.g., after a model update):
+
+```bash
+make clean-model
+./scripts/fetch-model.sh
+```
+
 ### Build Commands
 
 ```bash
-# Build for all architectures
+# Build for all architectures (auto-fetches model if needed)
 make
 
 # Build for x86_64 only
@@ -73,6 +94,9 @@ make install
 
 # Clean build artifacts
 make clean
+
+# Remove quantized model (to re-download)
+make clean-model
 ```
 
 ## Configuration
@@ -111,9 +135,12 @@ serper-startos/
 │   └── tsconfig.json
 ├── engines/             # Custom SearXNG engines
 │   └── openfoodfacts.py # Open Food Facts product search
-├── scripts/             # Start9 integration (Deno)
+├── models/              # ML model files (fetched by scripts/fetch-model.sh)
+│   └── ProtectAI/       # Quantized DeBERTa prompt injection model
+├── scripts/             # Start9 integration & build tools
 │   ├── embassy.ts       # Main exports
 │   ├── bundle.ts        # Build script
+│   ├── fetch-model.sh   # Download & quantize ML model
 │   ├── deps.ts          # Dependencies
 │   └── services/        # Service implementations
 ├── Dockerfile           # Multi-stage build
