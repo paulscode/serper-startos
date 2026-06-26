@@ -16,6 +16,11 @@ SHA256SUMS.txt
 scripts/*.js
 scripts/**/*.js
 
+# 0.4.0 (start-sdk) build output
+javascript/
+startos/*.js
+ncc-cache
+
 # Logs
 *.log
 logs/

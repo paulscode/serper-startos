@@ -84,8 +84,11 @@ COPY engines/openfoodfacts.py /usr/local/searxng/searx/engines/openfoodfacts.py
 COPY models/ /app/models/
 
 # ============================================================================
-# Setup entrypoint
+# Setup entrypoints
 # ============================================================================
+# Shared env-driven supervisor (used directly on StartOS 0.4.x and for plain
+# `docker run`), plus the 0.3.5.x config.yaml-driven shim that execs it.
+COPY --chmod=755 docker_entrypoint_040.sh /usr/local/bin/docker_entrypoint_040.sh
 COPY --chmod=755 docker_entrypoint.sh /usr/local/bin/docker_entrypoint.sh
 
 # ============================================================================
@@ -106,4 +109,6 @@ EXPOSE 3000
 
 WORKDIR /usr/local/searxng
 
-ENTRYPOINT ["/usr/local/bin/docker_entrypoint.sh"]
+# Default for plain `docker run` and StartOS 0.4.x: the env-driven supervisor.
+# The 0.3.5.x package overrides this with docker_entrypoint.sh via manifest.yaml.
+ENTRYPOINT ["/usr/local/bin/docker_entrypoint_040.sh"]

@@ -1,7 +1,8 @@
 id: serper
 title: "Serper Clone"
-version: 1.0.1
+version: 1.0.1.1
 release-notes: |
+  - Now packaged for both StartOS 0.3.5.1 and 0.4.0
   - ML-powered prompt injection detection using DeBERTa model
   - Configurable redact modes: redact (default), tag, or drop flagged content
   - Response metadata (_meta) now included by default
