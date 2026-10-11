@@ -44,7 +44,7 @@ IMAGE_FILES := Dockerfile docker_entrypoint_040.sh docker_entrypoint.sh \
         release check-0351 _pack-0351 \
         install-040 install-040-x86_64 install-040-aarch64 \
         install-0351 install-0351-x86_64 install-0351-aarch64 \
-        check-init clean clean-model
+        check-init clean clean-model format
 
 all: 040
 
@@ -62,9 +62,20 @@ $(PKG_ID)-040-x86_64.s9pk: javascript/index.js $(IMAGE_FILES) icon.png | check-i
 $(PKG_ID)-040-aarch64.s9pk: javascript/index.js $(IMAGE_FILES) icon.png | check-init
 	start-cli s9pk pack --icon icon.png --arch=aarch64 -o $@
 
+# The same gate as the SDK's s9pk.mk (which this Makefile does not include):
+# type check, the SDK's lint rules, a prettier check, then the bundle. The SDK
+# supplies typescript, prettier and ncc.
+SDK_DIR := node_modules/@start9labs/start-sdk
+PRETTIER_CONFIG := $(SDK_DIR)/prettier.config.json
+
 javascript/index.js: $(STARTOS_FILES) tsconfig.json node_modules
-	npm run check
-	npm run build
+	npx tsc --noEmit
+	node $(SDK_DIR)/lint.mjs
+	npx prettier --config $(PRETTIER_CONFIG) --check startos
+	rm -rf javascript && npx ncc build startos/index.ts -o javascript
+
+format: | node_modules
+	npx prettier --config $(PRETTIER_CONFIG) --write startos
 
 node_modules: package.json
 	npm i

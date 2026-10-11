@@ -10,13 +10,13 @@ export const configJson = FileHelper.json(
     base: sdk.volumes.main,
     subpath: '/config.json',
   },
-  z.object({
+  z.looseObject({
     apiKey: z.string().catch(''),
     instanceName: z.string().catch('Serper'),
     logLevel: z.enum(['error', 'warn', 'info', 'debug']).catch('info'),
     defaultResults: z.number().int().catch(10),
     promptInjectionDefense: z
-      .object({
+      .looseObject({
         sanitizeResults: z.boolean().catch(true),
         wrapMarkers: z.boolean().catch(false),
         includeMeta: z.boolean().catch(true),

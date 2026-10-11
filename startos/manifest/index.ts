@@ -36,7 +36,4 @@ export const manifest = setupManifest({
       arch: ['x86_64', 'aarch64'],
     },
   },
-  // Self-contained: bundles SearXNG + Valkey + the Serper bridge in one image,
-  // no external services required.
-  dependencies: {},
 })

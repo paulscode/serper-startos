@@ -1,12 +1,13 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
+const notes =
+  'Rebuilt on version 3 of the StartOS packaging SDK, which needs StartOS ' +
+  '0.4.0.2. Nothing you have set changes.'
+
 export const current = VersionInfo.of({
-  version: '1.0.1:1',
+  version: '1.0.1:2',
   releaseNotes: {
-    en_US:
-      'First release packaged for StartOS 0.4.0 (also available for 0.3.5.1). ' +
-      'ML-powered prompt injection detection, configurable redact modes, and ' +
-      'response metadata. No functional changes to the app itself.',
+    en_US: notes,
   },
   migrations: {
     up: async ({ effects }) => {},
