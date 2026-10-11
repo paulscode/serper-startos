@@ -1,7 +1,7 @@
 import { setupManifest } from '@start9labs/start-sdk'
 
 const short =
-  'Self-sovereign Serper-compatible search API - own your AI\'s search capability.'
+  "Self-sovereign Serper-compatible search API - own your AI's search capability."
 
 const long =
   'Serper Clone is a self-sovereign, privacy-respecting search API that provides full ' +

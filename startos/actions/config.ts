@@ -63,7 +63,7 @@ export const inputSpec = InputSpec.of({
       wrapMarkers: Value.toggle({
         name: 'Boundary Markers',
         description:
-          'Wrap search result text in ---BEGIN SEARCH RESULT--- / ---END SEARCH RESULT--- delimiters. Helps LLMs distinguish data from instructions when combined with appropriate system prompts. May break some integrations that don\'t expect markers.',
+          "Wrap search result text in ---BEGIN SEARCH RESULT--- / ---END SEARCH RESULT--- delimiters. Helps LLMs distinguish data from instructions when combined with appropriate system prompts. May break some integrations that don't expect markers.",
         default: false,
       }),
       includeMeta: Value.toggle({
