@@ -29,6 +29,7 @@ export const apiKeyInfo = sdk.Action.withoutInput(
         copyable: true,
         qr: false,
         masked: true,
+        launchable: false,
       },
     }
   },
