@@ -79,6 +79,30 @@ COPY settings.yml /etc/searxng/settings.yml
 COPY engines/openfoodfacts.py /usr/local/searxng/searx/engines/openfoodfacts.py
 
 # ============================================================================
+# Engine resilience: one sick engine must not take down every search
+# ============================================================================
+# On 2026-08-17 wikidata's init() could not reach query.wikidata.org, so it was
+# never registered, and because SearXNG looks every enabled engine up without a
+# guard, every search on this instance returned 500 for two days. This patch
+# makes a missing engine skip instead of raise, and retries failed engines on a
+# timer so they rejoin by themselves when the cause clears.
+#
+# Loaded by a .pth rather than by editing SearXNG, so an upstream upgrade cannot
+# quietly drop it, and the module refuses to install itself if the internals it
+# relies on have moved.
+COPY searxng-patches/engine_resilience.py /tmp/engine_resilience.py
+# The module and its .pth go in SearXNG's own virtualenv, which is the
+# interpreter that runs it; the image's system python3 never reads a .pth of
+# its own. It is a top-level module rather than searx.engine_resilience because
+# a .pth runs before searx is on sys.path; start() then waits off-thread for
+# searx to load. The import check fails the build if the hook would not load.
+RUN SITE="$(/usr/local/searxng/.venv/bin/python3 -c 'import site; print(site.getsitepackages()[0])')" \
+ && mv /tmp/engine_resilience.py "$SITE/serper_engine_resilience.py" \
+ && printf 'import serper_engine_resilience as _er; _er.start()\n' > "$SITE/zz_engine_resilience.pth" \
+ && echo "engine resilience installed in $SITE" \
+ && /usr/local/searxng/.venv/bin/python3 -c 'import serper_engine_resilience'
+
+# ============================================================================
 # Bake ML prompt injection model into image
 # ============================================================================
 COPY models/ /app/models/

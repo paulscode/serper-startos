@@ -1,6 +1,18 @@
 # SearXNG Settings for Serper Bridge
 # Internal instance - not exposed to users directly
 
+# wikidata stays enabled on purpose.
+#
+# Its init() makes a live SPARQL call to query.wikidata.org while SearXNG starts,
+# and when that call fails the engine is never registered -- which used to make
+# every search on this instance return 500, because SearXNG looks up each
+# enabled engine without a guard. Removing the engine would fix that by shipping
+# one fewer engine forever, and would do nothing for the next engine to fail the
+# same way.
+#
+# searxng-patches/engine_resilience.py (installed as serper_engine_resilience) handles it instead: a missing engine is
+# skipped rather than fatal, and failed engines are retried on a timer so they
+# rejoin by themselves once the cause clears.
 use_default_settings: true
 
 server:

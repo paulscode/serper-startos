@@ -81,7 +81,36 @@ export class SearxngClient {
   }
 
   /**
-   * Check if the SearXNG instance is healthy
+   * Can SearXNG actually answer a search?
+   *
+   * `healthCheck` only proves the process is listening. That is not the same
+   * question, and on 2026-08-17 the difference mattered: one engine failed its
+   * start-up init, every `/search` returned 500 for two days, and `/health`
+   * reported `searxng: "up"` throughout, because the home page was being served
+   * perfectly well the whole time.
+   *
+   * A health endpoint that goes green while the only thing anyone uses is
+   * broken is worse than no health endpoint, because it is the signal that
+   * stops somebody looking. So this asks the real question, with a query cheap
+   * enough to run on every check and a short timeout so a slow upstream reports
+   * degraded rather than hanging the caller.
+   */
+  async searchCheck(): Promise<boolean> {
+    try {
+      const response = await this.client.get('/search', {
+        params: { q: 'test', format: 'json' },
+        timeout: 8000,
+      });
+      return response.status === 200 && !!response.data;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Check if the SearXNG instance is reachable.
+   *
+   * Reachable, not working: see `searchCheck` for the question that matters.
    */
   async healthCheck(): Promise<boolean> {
     try {

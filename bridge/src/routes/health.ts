@@ -13,14 +13,26 @@ const router = Router();
  * GET /health - Basic health check
  */
 router.get('/health', async (req: Request, res: Response) => {
-  const searxngHealthy = await searxngClient.healthCheck();
+  // Both questions, because they have different answers. `reachable` says the
+  // process is listening; `searchable` says it can do the one thing anyone
+  // calls it for. Reporting only the first is how a two-day outage went
+  // unnoticed behind a green light.
+  const [reachable, searchable] = await Promise.all([
+    searxngClient.healthCheck(),
+    searxngClient.searchCheck(),
+  ]);
+  const healthy = reachable && searchable;
 
   const status = {
-    status: searxngHealthy ? 'healthy' : 'degraded',
+    status: healthy ? 'healthy' : 'degraded',
     timestamp: new Date().toISOString(),
     services: {
       bridge: 'up',
-      searxng: searxngHealthy ? 'up' : 'down',
+      searxng: healthy ? 'up' : reachable ? 'reachable but not searching' : 'down',
+    },
+    checks: {
+      reachable,
+      searchable,
     },
     config: {
       searxngUrl: config.searxngBaseUrl,
@@ -28,7 +40,7 @@ router.get('/health', async (req: Request, res: Response) => {
     },
   };
 
-  const httpStatus = searxngHealthy ? 200 : 503;
+  const httpStatus = healthy ? 200 : 503;
   res.status(httpStatus).json(status);
 });
 

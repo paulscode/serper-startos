@@ -53,3 +53,4 @@ deno.lock
 .github/workflows/copilot-instructions.md
 
 builds/
+__pycache__/
