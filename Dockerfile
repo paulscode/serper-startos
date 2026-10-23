@@ -19,7 +19,7 @@ RUN apk add --no-cache yq && \
 # ============================================================================
 # Stage 2: Build the Node.js bridge
 # ============================================================================
-FROM node:20-alpine AS bridge-builder
+FROM node:24-alpine AS bridge-builder
 
 WORKDIR /app
 
@@ -56,7 +56,7 @@ RUN ln -sf /usr/local/bin/valkey-cli /usr/local/bin/redis-cli && \
 # ============================================================================
 # Setup Bridge Application (copy Node.js from Alpine)
 # ============================================================================
-# Copy Node.js runtime from node:20-alpine
+# Copy Node.js runtime from node:24-alpine
 COPY --from=bridge-builder /usr/local/bin/node /usr/local/bin/
 COPY --from=bridge-builder /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
